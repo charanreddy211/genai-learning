@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toddler Alphabet Finder</title>
+    <style>
+        body {
+            font-family: 'Arial Rounded MT Bold', 'Helvetica Rounded', Arial, sans-serif;
+            background-color: #FFDE59;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            transition: background-color 0.5s ease;
+        }
+
+        body.success-state {
+            background-color: #7ED957 !important;
+        }
+
+        #game-container {
+            text-align: center;
+            background: white;
+            padding: 30px;
+            border-radius: 40px;
+            box-shadow: 0 20px 0 #D4B63B;
+            max-width: 95%;
+            width: 750px;
+        }
+
+        #stage-indicator {
+            font-size: 2.2rem;
+            color: #FF5757;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        #instruction {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        #display-area {
+            height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #letter-display {
+            font-size: 14rem;
+            font-weight: bold;
+            color: #5CE1E6;
+            text-shadow: 8px 8px 0px #388E91;
+            animation: bounce 0.6s infinite alternate ease-in-out;
+        }
+
+        #checkmark {
+            font-size: 14rem;
+            color: #7ED957;
+            display: none;
+            text-shadow: 8px 8px 0px #559639;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-15px); }
+        }
+
+        #keyboard-layout {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 25px;
+            background: #F2F2F2;
+            padding: 20px;
+            border-radius: 25px;
+            border: 4px solid #DDD;
+        }
+
+        #next-stage-button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 24px;
+            border: 0;
+            border-radius: 14px;
+            background: #7ED957;
+            color: #24551A;
+            font: inherit;
+            font-size: 1.4rem;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #559639;
+        }
+
+        #next-stage-button:disabled {
+            background: #CCC;
+            color: #666;
+            box-shadow: none;
+            cursor: default;
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .key {
+            background: white;
+            border: 3px solid #CCC;
+            border-radius: 12px;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #555;
+            box-shadow: 0 5px 0 #CCC;
+            transition: all 0.2s ease;
+        }
+
+        .key.target-hint {
+            background-color: #FF5757;
+            color: white;
+            border-color: #B83E3E;
+            box-shadow: 0 5px 0 #B83E3E;
+            transform: scale(1.15);
+            animation: pulse-hint 0.8s infinite alternate;
+            z-index: 10;
+        }
+
+        .key.target-success {
+            background-color: #7ED957 !important;
+            color: white !important;
+            border-color: #559639 !important;
+            box-shadow: 0 5px 0 #559639 !important;
+            transform: scale(1.2);
+        }
+
+        @keyframes pulse-hint {
+            from { filter: drop-shadow(0 0 2px rgba(255,87,87,0.5)); }
+            to { filter: drop-shadow(0 0 15px rgba(255,87,87,0.9)); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="stage-indicator">Stage 1: ABCDEF</div>
+        <div id="instruction">Find this key on your keyboard! 👇</div>
+        
+        <div id="display-area">
+            <div id="letter-display">A</div>
+            <div id="checkmark">🎉</div>
+        </div>
+
+        <div id="keyboard-layout"></div>
+        <button id="next-stage-button" type="button">Next Stage</button>
+    </div>
+
+    <script>
+        const stages = [
+            { name: "Stage 1: ABCDEF", letters: ["A", "B", "C", "D", "E", "F"] },
+            { name: "Stage 2: GHIJKL", letters: ["G", "H", "I", "J", "K", "L"] },
+            { name: "Stage 3: MNOPQR", letters: ["M", "N", "O", "P", "Q", "R"] },
+            { name: "Stage 4: STUVWX", letters: ["S", "T", "U", "V", "W", "X"] },
+            { name: "Stage 5: YZ + ALL", letters: ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"] }
+        ];
+
+        const qwertyLayout = [
+            ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+            ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+            ["Z", "X", "C", "V", "B", "N", "M"]
+        ];
+
+        let currentStageIndex = 0;
+        let currentTargetLetter = "";
+        let isWaitingForNext = false;
+
+        const stageIndicator = document.getElementById("stage-indicator");
+        const letterDisplay = document.getElementById("letter-display");
+        const checkmarkDisplay = document.getElementById("checkmark");
+        const keyboardContainer = document.getElementById("keyboard-layout");
+        const nextStageButton = document.getElementById("next-stage-button");
+
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.75;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function renderKeyboard() {
+            keyboardContainer.innerHTML = '';
+            qwertyLayout.forEach(row => {
+                const rowDiv = document.createElement("div");
+                rowDiv.className = "keyboard-row";
+                row.forEach(letter => {
+                    const keyDiv = document.createElement("div");
+                    keyDiv.className = "key";
+                    keyDiv.id = `key-${letter}`;
+                    keyDiv.innerText = letter;
+                    rowDiv.appendChild(keyDiv);
+                });
+                keyboardContainer.appendChild(rowDiv);
+            });
+        }
+
+        function updateKeyboardHighlight(successMode = false) {
+            document.querySelectorAll('.key').forEach(k => {
+                k.classList.remove('target-hint', 'target-success');
+            });
+
+            const currentKey = document.getElementById(`key-${currentTargetLetter}`);
+            if (currentKey) {
+                if (successMode) {
+                    currentKey.classList.add('target-success');
+                } else {
+                    currentKey.classList.add('target-hint');
+                }
+            }
+        }
+
+        function nextLetter() {
+            isWaitingForNext = false;
+            document.body.classList.remove("success-state");
+            letterDisplay.style.display = "block";
+            checkmarkDisplay.style.display = "none";
+
+            const currentStage = stages[currentStageIndex];
+            let newLetter;
+            do {
+                newLetter = currentStage.letters[Math.floor(Math.random() * currentStage.letters.length)];
+            } while (newLetter === currentTargetLetter && currentStage.letters.length > 1);
+
+            currentTargetLetter = newLetter;
+            letterDisplay.innerText = currentTargetLetter;
+            
+            updateKeyboardHighlight(false);
+            speak(currentTargetLetter);
+        }
+
+        function showStage(index) {
+            currentStageIndex = index;
+            stageIndicator.innerText = stages[currentStageIndex].name;
+            nextStageButton.disabled = currentStageIndex === stages.length - 1;
+            nextStageButton.innerText = nextStageButton.disabled ? "All Stages Complete" : "Next Stage";
+            nextLetter();
+        }
+
+        window.addEventListener("keydown", (event) => {
+            if (isWaitingForNext) return;
+
+            const pressedKey = event.key.toUpperCase();
+            if (!/^[A-Z]$/.test(pressedKey)) return;
+
+            if (pressedKey === currentTargetLetter) {
+                isWaitingForNext = true;
+
+                speak(`${currentTargetLetter}! You found it! Awesome!`);
+
+                document.body.classList.add("success-state");
+                letterDisplay.style.display = "none";
+                checkmarkDisplay.style.display = "block";
+
+                updateKeyboardHighlight(true);
+
+                setTimeout(() => {
+                    nextLetter();
+                }, 3000);
+
+            } else {
+                speak(currentTargetLetter);
+            }
+        });
+
+        nextStageButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            if (isWaitingForNext || nextStageButton.disabled) return;
+
+            if (window.confirm("Are you ready to start the next stage?")) {
+                document.getElementById("instruction").innerText = "Find this key on your keyboard! 👇";
+                speak("Next level! Let's try more letters!");
+                showStage(currentStageIndex + 1);
+            }
+        });
+
+        renderKeyboard();
+        stageIndicator.innerText = stages[currentStageIndex].name;
+
+        window.addEventListener("click", () => {
+            if (currentTargetLetter === "") {
+                nextLetter();
+            }
+            console.log("Screen clicked. Current target letter:", currentTargetLetter);
+        });
+
+        speak("Click the yellow screen to start!");
+    </script>
+</body>
+</html>
